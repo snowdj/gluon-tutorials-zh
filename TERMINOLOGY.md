@@ -78,6 +78,10 @@
 
 负采样，negative sampling
 
+感受野，receptive field
+
+格拉姆矩阵，Gram matrix
+
 共现词频，co-occurrence frequency
 
 归一化，normalization
@@ -138,6 +142,8 @@
 
 偏导数，partial derivative
 
+偏移量，offset
+
 批量，batch
 
 平均池化层，average pooling layer
@@ -149,6 +155,8 @@
 全连接层，fully connected layer
 
 权重，weight
+
+上采样，upsample
 
 实例，instance
 
@@ -169,6 +177,8 @@ softmax回归，softmax regression
 双向循环神经网络，bidirectional recurrent neural network
 
 特征，feature
+
+特征图，feature map
 
 特征值，eigenvalue
 
