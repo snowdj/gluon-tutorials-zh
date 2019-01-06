@@ -22,7 +22,7 @@
 
 ```{.python .input  n=1}
 %matplotlib inline
-import gluonbook as gb
+import d2lzh as d2l
 from mxnet import autograd, contrib, gluon, image, init, nd
 from mxnet.gluon import loss as gloss, nn
 import time
@@ -193,15 +193,13 @@ print('output bbox preds:', bbox_preds.shape)
 
 ```{.python .input  n=14}
 batch_size = 32
-train_data, test_data = gb.load_data_pikachu(batch_size)
-# 为保证 GPU 计算效率，这里为每张训练图像填充了两个标签为 -1 的边界框。
-train_data.reshape(label_shape=(3, 5))
+train_iter, _ = d2l.load_data_pikachu(batch_size)
 ```
 
 在皮卡丘数据集中，目标的类别数为1。定义好模型以后，我们需要初始化模型参数并定义优化算法。
 
 ```{.python .input  n=15}
-ctx, net = gb.try_gpu(), TinySSD(num_classes=1)
+ctx, net = d2l.try_gpu(), TinySSD(num_classes=1)
 net.initialize(init=init.Xavier(), ctx=ctx)
 trainer = gluon.Trainer(net.collect_params(), 'sgd',
                         {'learning_rate': 0.2, 'wd': 5e-4})
@@ -226,10 +224,10 @@ def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks):
 ```{.python .input  n=18}
 def cls_eval(cls_preds, cls_labels):
     # 由于类别预测结果放在最后一维，argmax 需要指定最后一维。
-    return (cls_preds.argmax(axis=-1) == cls_labels).mean().asscalar()
+    return (cls_preds.argmax(axis=-1) == cls_labels).sum().asscalar()
 
 def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
-    return ((bbox_labels - bbox_preds) * bbox_masks).abs().mean().asscalar()
+    return ((bbox_labels - bbox_preds) * bbox_masks).abs().sum().asscalar()
 ```
 
 ### 训练模型
@@ -238,10 +236,10 @@ def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
 
 ```{.python .input  n=19}
 for epoch in range(20):
-    acc, mae = 0, 0
-    train_data.reset()  # 从头读取数据。
+    acc_sum, mae_sum, n, m = 0.0, 0.0, 0, 0
+    train_iter.reset()  # 从头读取数据。
     start = time.time()
-    for i, batch in enumerate(train_data):
+    for batch in train_iter:
         X = batch.data[0].as_in_context(ctx)
         Y = batch.label[0].as_in_context(ctx)
         with autograd.record():
@@ -255,11 +253,14 @@ for epoch in range(20):
                           bbox_masks)
         l.backward()
         trainer.step(batch_size)
-        acc += cls_eval(cls_preds, cls_labels)
-        mae += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
+        acc_sum += cls_eval(cls_preds, cls_labels)
+        n += cls_labels.size
+        mae_sum += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
+        m += bbox_labels.size
+
     if (epoch + 1) % 5 == 0:
         print('epoch %2d, class err %.2e, bbox mae %.2e, time %.1f sec' % (
-            epoch + 1, 1 - acc / (i + 1), mae / (i + 1), time.time() - start))
+            epoch + 1, 1 - acc_sum / n, mae_sum / m, time.time() - start))
 ```
 
 ## 预测
@@ -288,17 +289,17 @@ output = predict(X)
 最后，我们将置信度不低于0.3的边界框筛选为最终输出用以展示。
 
 ```{.python .input  n=22}
-gb.set_figsize((5, 5))
+d2l.set_figsize((5, 5))
 
 def display(img, output, threshold):
-    fig = gb.plt.imshow(img.asnumpy())
+    fig = d2l.plt.imshow(img.asnumpy())
     for row in output:
         score = row[1].asscalar()
         if score < threshold:
             continue
         h, w = img.shape[0:2]
         bbox = [row[2:6] * nd.array((w, h, w, h), ctx=row.context)]
-        gb.show_bboxes(fig.axes, bbox, '%.2f' % score, 'w')
+        d2l.show_bboxes(fig.axes, bbox, '%.2f' % score, 'w')
 
 display(img, output, threshold=0.3)
 ```
@@ -333,12 +334,12 @@ $$
 sigmas = [10, 1, 0.5]
 lines = ['-', '--', '-.']
 x = nd.arange(-2, 2, 0.1)
-gb.set_figsize()
+d2l.set_figsize()
 
 for l, s in zip(lines, sigmas):
     y = nd.smooth_l1(x, scalar=s)
-    gb.plt.plot(x.asnumpy(), y.asnumpy(), l, label='sigma=%.1f' % s)
-gb.plt.legend();
+    d2l.plt.plot(x.asnumpy(), y.asnumpy(), l, label='sigma=%.1f' % s)
+d2l.plt.legend();
 ```
 
 在类别预测时，实验中使用了交叉熵损失：设真实类别$j$的预测概率是$p_j$，交叉熵损失为$-\log p_j$。我们还可以使用焦点损失（focal loss）[2]：给定正的超参数$\gamma$和$\alpha$，该损失的定义为
@@ -353,9 +354,9 @@ def focal_loss(gamma, x):
 
 x = nd.arange(0.01, 1, 0.01)
 for l, gamma in zip(lines, [0, 1, 5]):
-    y = gb.plt.plot(x.asnumpy(), focal_loss(gamma, x).asnumpy(), l,
-                    label='gamma=%.1f' % gamma)
-gb.plt.legend();
+    y = d2l.plt.plot(x.asnumpy(), focal_loss(gamma, x).asnumpy(), l,
+                     label='gamma=%.1f' % gamma)
+d2l.plt.legend();
 ```
 
 ### 训练和预测

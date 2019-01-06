@@ -6,7 +6,7 @@
 
 ```{.python .input  n=1}
 import collections
-import gluonbook as gb
+import d2lzh as d2l
 import math
 from mxnet import autograd, gluon, nd
 from mxnet.gluon import data as gdata, loss as gloss, nn
@@ -251,9 +251,9 @@ loss = gloss.SigmoidBinaryCrossEntropyLoss()
 
 值得一提的是，我们可以通过掩码变量指定小批量中参与损失函数计算的部分预测值和标签：当掩码为1时，相应位置的预测值和标签将参与损失函数的计算；当掩码为0时，相应位置的预测值和标签则不参与损失函数的计算。我们之前提到，掩码变量可用于避免填充项对损失函数计算的影响。
 
-```{.python .input}
+```{.python .input  n=20}
 pred = nd.array([[1.5, 0.3, -1, 2], [1.1, -0.6, 2.2, 0.4]])
-# 标签变量 label 中的 1 和 0 分别代表背景词和噪声词。
+# 标签变量 label 中的 1 和 0 分别代表背景词和噪音词。
 label = nd.array([[1, 0, 0, 0], [1, 1, 0, 0]])
 mask = nd.array([[1, 1, 1, 1], [1, 1, 1, 0]])  # 掩码变量。
 loss(pred, label, mask) * mask.shape[1] / mask.sum(axis=1)
@@ -261,7 +261,7 @@ loss(pred, label, mask) * mask.shape[1] / mask.sum(axis=1)
 
 作为比较，下面将从零开始实现二元交叉熵损失函数的计算，并根据掩码变量`mask`计算掩码为1的预测值和标签的损失。
 
-```{.python .input}
+```{.python .input  n=21}
 def sigmd(x):
     return -math.log(1 / (1 + math.exp(-x)))
 
@@ -273,7 +273,7 @@ print('%.7f' % ((sigmd(1.1) + sigmd(-0.6) + sigmd(-2.2)) / 3))
 
 我们分别构造中心词和背景词的嵌入层，并将超参数词向量维度`embed_size`设置成100。
 
-```{.python .input  n=20}
+```{.python .input  n=22}
 embed_size = 100
 net = nn.Sequential()
 net.add(nn.Embedding(input_dim=len(idx_to_token), output_dim=embed_size),
@@ -284,14 +284,14 @@ net.add(nn.Embedding(input_dim=len(idx_to_token), output_dim=embed_size),
 
 下面定义训练函数。由于填充项的存在，跟之前的训练函数相比，损失函数的计算稍有不同。
 
-```{.python .input  n=21}
+```{.python .input  n=23}
 def train(net, lr, num_epochs):
-    ctx = gb.try_gpu()
+    ctx = d2l.try_gpu()
     net.initialize(ctx=ctx, force_reinit=True)
     trainer = gluon.Trainer(net.collect_params(), 'adam',
                             {'learning_rate': lr})
     for epoch in range(num_epochs):
-        start_time, train_l_sum = time.time(), 0
+        start, l_sum, n = time.time(), 0.0, 0
         for batch in data_iter:
             center, context_negative, mask, label = [
                 data.as_in_context(ctx) for data in batch]
@@ -302,27 +302,28 @@ def train(net, lr, num_epochs):
                      mask.shape[1] / mask.sum(axis=1))
             l.backward()
             trainer.step(batch_size)
-            train_l_sum += l.mean().asscalar()
-        print('epoch %d, train loss %.2f, time %.2fs'
-              % (epoch + 1, train_l_sum / len(data_iter),
-                 time.time() - start_time))
+            l_sum += l.sum().asscalar()
+            n += l.size
+        print('epoch %d, loss %.2f, time %.2fs'
+              % (epoch + 1, l_sum / n, time.time() - start))
 ```
 
 现在我们可以训练使用负采样的跳字模型了。
 
-```{.python .input  n=22}
-train(net, 0.005, 8)
+```{.python .input  n=24}
+train(net, 0.005, 5)
 ```
 
 ## 应用词嵌入模型
 
 当训练好词嵌入模型后，我们可以根据两个词向量的余弦相似度表示词与词之间在语义上的相似度。可以看到，使用训练得到的词嵌入模型时，与词“chip”语义最接近的词大多与芯片有关。
 
-```{.python .input  n=23}
+```{.python .input  n=25}
 def get_similar_tokens(query_token, k, embed):
     W = embed.weight.data()
     x = W[token_to_idx[query_token]]
-    cos = nd.dot(W, x) / nd.sum(W * W, axis=1).sqrt() / nd.sum(x * x).sqrt()
+    # 添加的 1e-9 是为了数值稳定性。
+    cos = nd.dot(W, x) / (nd.sum(W * W, axis=1) * nd.sum(x * x) + 1e-9).sqrt()
     topk = nd.topk(cos, k=k+1, ret_typ='indices').asnumpy().astype('int32')
     for i in topk[1:]:  # 除去输入词。
         print('cosine sim=%.3f: %s' % (cos[i].asscalar(), (idx_to_token[i])))
@@ -339,6 +340,7 @@ get_similar_tokens('chip', 3, net[0])
 
 ## 练习
 
+* 在创建`nn.Embedding`实例时设参数`sparse_grad=True`，训练是否可以加速？查阅MXNet文档，了解该参数的意义。
 * 我们用`batchify`函数指定`DataLoader`实例中小批量的读取方式，并打印了读取的第一个批量中各个变量的形状。这些形状该如何计算得到？
 * 试着找出其他词的近义词。
 * 调一调超参数，观察并分析实验结果。

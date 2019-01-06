@@ -14,7 +14,7 @@ GoogLeNet中的基础卷积块叫做Inception块，得名于同名电影《盗�
 Inception块中可以自定义的超参数是每个层的输出通道数，我们以此来控制模型复杂度。
 
 ```{.python .input  n=1}
-import gluonbook as gb
+import d2lzh as d2l
 from mxnet import gluon, init, nd
 from mxnet.gluon import nn
 
@@ -63,9 +63,7 @@ b2.add(nn.Conv2D(64, kernel_size=1),
        nn.MaxPool2D(pool_size=3, strides=2, padding=1))
 ```
 
-
-第三模块串联两个完整的Inception块。第一个Inception块的输出通道数为256,其中四个线路的输出通道比例为2:4:1:1。且第二、三线路先分别将输入通道减小2倍和12倍后再进入第二层卷积层。第二个Inception块输出通道数增至480，每个线路的通道比例为4:6:3:2。且第二、三线路先分别减少2倍和8倍通道数。
-
+第三模块串联两个完整的Inception块。第一个Inception块的输出通道数为$64+128+32+32=256$，其中四条线路的输出通道数比例为$64:128:32:32=2:4:1:1$。其中第二、第三条线路先分别将输入通道数减小至$96/192=1/2$和$16/192=1/12$后，再接上第二层卷积层。第二个Inception块输出通道数增至$128+192+96+64=480$，每条线路的输出通道数之比为$128:192:96:64 = 4:6:3:2$。其中第二、第三条线路先分别将输入通道数减小至$128/256=1/2$和$32/256=1/8$。
 
 ```{.python .input  n=4}
 b3 = nn.Sequential()
@@ -113,11 +111,12 @@ for layer in net:
 我们使用高和宽均为96像素的图像来训练GoogLeNet模型。训练使用的图像依然来自Fashion-MNIST数据集。
 
 ```{.python .input  n=8}
-lr, num_epochs, batch_size, ctx = 0.1, 5, 128, gb.try_gpu()
+lr, num_epochs, batch_size, ctx = 0.1, 5, 128, d2l.try_gpu()
 net.initialize(force_reinit=True, ctx=ctx, init=init.Xavier())
 trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': lr})
-train_iter, test_iter = gb.load_data_fashion_mnist(batch_size, resize=96)
-gb.train_ch5(net, train_iter, test_iter, batch_size, trainer, ctx, num_epochs)
+train_iter, test_iter = d2l.load_data_fashion_mnist(batch_size, resize=96)
+d2l.train_ch5(net, train_iter, test_iter, batch_size, trainer, ctx,
+              num_epochs)
 ```
 
 ## 小结

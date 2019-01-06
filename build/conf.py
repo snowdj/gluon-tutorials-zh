@@ -74,7 +74,7 @@ master_doc = 'index'
 # General information about the project.
 project = '《动手学深度学习》'
 copyright = '2017--2018, Contributors'
-author = "MXNet Community"
+author = "A. Zhang, M. Li, Z. C. Lipton, and A. J. Smola"
 
 
 # The version info for the project you're documenting, acts as replacement for
@@ -103,7 +103,7 @@ language = 'zh_CN'
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints',
-                    'mx-theme', 'sphinx_materialdesign_theme']
+                    'mx-theme']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -140,16 +140,17 @@ todo_include_todos = True
 # html_theme = 'sphinx_rtd_theme'
 
 html_theme_path = ['mx-theme']
-html_theme = 'sphinx_materialdesign_theme'
+html_theme = 'mxtheme'
 html_theme_options = {
     'primary_color': 'blue',
     'accent_color': 'deep_orange',
     'header_links' : [
-        ('PDF 版本', 'http://zh.diveintodeeplearning.org/d2l-zh.pdf', True, 'fas fa-file-pdf'),
-        ('Jupyter 记事本版本', 'http://zh.diveintodeeplearning.org/d2l-zh.zip', True, 'fas fa-download'),
-        ('参与讨论', 'https://discuss.gluon.ai/c/lecture?order=views', True, 'fab fa-discourse'),
-        ('Github', 'https://github.com/diveintodeeplearning/d2l-zh', True, 'fab fa-github'),
-        ('English version', 'https://diveintodeeplearning.org', True, 'fas fa-external-link-alt'),
+        ('伯克利 2019 深度学习课程', 'https://courses.d2l.ai/berkeley-stat-157/index.html', True, 'fas fa-user-graduate'),
+        ('PDF', 'https://zh.d2l.ai/d2l-zh.pdf', True, 'fas fa-file-pdf'),
+        ('Jupyter 记事本', 'https://zh.d2l.ai/d2l-zh.zip', True, 'fas fa-download'),
+        ('讨论', 'https://discuss.gluon.ai/c/lecture?order=views', True, 'fab fa-discourse'),
+		('GitHub', 'https://github.com/d2l-ai/d2l-zh', True, 'fab fa-github'),
+		('English Version', 'https://d2l.ai', True, 'fas fa-external-link-alt'),
     ],
     'show_footer': True
 }
@@ -387,3 +388,4 @@ def setup(app):
     app.add_config_value('recommonmark_config', {
     }, True)
     app.add_javascript('google_analytics.js')
+    app.add_javascript('discuss.js')

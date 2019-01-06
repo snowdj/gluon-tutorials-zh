@@ -28,7 +28,7 @@ Kaggle（网站地址：https://www.kaggle.com ）是一个著名的供机器学
 # !pip install pandas
 
 %matplotlib inline
-import gluonbook as gb
+import d2lzh as d2l
 from mxnet import autograd, gluon, init, nd
 from mxnet.gluon import data as gdata, loss as gloss, nn
 import numpy as np
@@ -115,10 +115,10 @@ def get_net():
 $$\sqrt{\frac{1}{n}\sum_{i=1}^n\left(\log(y_i)-\log(\hat y_i)\right)^2}.$$
 
 ```{.python .input  n=11}
-def log_rmse(net, train_features, train_labels):
+def log_rmse(net, features, labels):
     # 将小于 1 的值设成 1，使得取对数时数值更稳定。
-    clipped_preds = nd.clip(net(train_features), 1, float('inf'))
-    rmse = nd.sqrt(2 * loss(clipped_preds.log(), train_labels.log()).mean())
+    clipped_preds = nd.clip(net(features), 1, float('inf'))
+    rmse = nd.sqrt(2 * loss(clipped_preds.log(), labels.log()).mean())
     return rmse.asscalar()
 ```
 
@@ -177,13 +177,13 @@ def k_fold(k, X_train, y_train, num_epochs,
         data = get_k_fold_data(k, i, X_train, y_train)
         net = get_net()
         train_ls, valid_ls = train(net, *data, num_epochs, learning_rate,
-                                  weight_decay, batch_size)
+                                   weight_decay, batch_size)
         train_l_sum += train_ls[-1]
         valid_l_sum += valid_ls[-1]
         if i == 0:
-            gb.semilogy(range(1, num_epochs + 1), train_ls, 'epochs', 'rmse',
-                        range(1, num_epochs + 1), valid_ls,
-                        ['train', 'valid'])
+            d2l.semilogy(range(1, num_epochs + 1), train_ls, 'epochs', 'rmse',
+                         range(1, num_epochs + 1), valid_ls,
+                         ['train', 'valid'])
         print('fold %d, train rmse: %f, valid rmse: %f' % (
             i, train_ls[-1], valid_ls[-1]))
     return train_l_sum / k, valid_l_sum / k
@@ -195,9 +195,8 @@ def k_fold(k, X_train, y_train, num_epochs,
 
 ```{.python .input  n=16}
 k, num_epochs, lr, weight_decay, batch_size = 5, 100, 5, 0, 64
-verbose_epoch = num_epochs - 2
 train_l, valid_l = k_fold(k, train_features, train_labels, num_epochs, lr,
-                         weight_decay, batch_size)
+                          weight_decay, batch_size)
 print('%d-fold validation: avg train rmse: %f, avg valid rmse: %f'
       % (k, train_l, valid_l))
 ```
@@ -214,7 +213,7 @@ def train_and_pred(train_features, test_feature, train_labels, test_data,
     net = get_net()
     train_ls, _ = train(net, train_features, train_labels, None, None,
                         num_epochs, lr, weight_decay, batch_size)
-    gb.semilogy(range(1, num_epochs + 1), train_ls, 'epochs', 'rmse')
+    d2l.semilogy(range(1, num_epochs + 1), train_ls, 'epochs', 'rmse')
     print('train rmse %f' % train_ls[-1])
     preds = net(test_features).asnumpy()
     test_data['SalePrice'] = pd.Series(preds.reshape(1, -1)[0])
@@ -244,7 +243,7 @@ train_and_pred(train_features, test_features, train_labels, test_data,
 
 * 在Kaggle提交本教程的预测结果。观察一下，这个结果在Kaggle上能拿到什么样的分数？
 * 对照$K$折交叉验证结果，不断修改模型（例如添加隐藏层）和调参，你能提高Kaggle上的分数吗？
-* 如果不使用本节中对连续数值特征的标准化处理，结果会有什么变化?
+* 如果不使用本节中对连续数值特征的标准化处理，结果会有什么变化？
 * 扫码直达讨论区，在社区交流方法和结果。你能发掘出其他更好的技巧吗？
 
 ## 扫码直达[讨论区](https://discuss.gluon.ai/t/topic/1039)

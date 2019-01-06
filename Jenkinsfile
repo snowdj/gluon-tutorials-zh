@@ -1,37 +1,16 @@
-stage("Build HTML") {
+stage("Build and Publish") {
   node {
     ws('workspace/d2l-zh') {
-      checkout scm
-      sh "build/build_html.sh"
-    }
-  }
-}
-
-stage("Build PDF") {
-  node {
-    ws('workspace/d2l-zh') {
-      sh "build/build_pdf.sh"
-    }
-  }
-}
-
-stage("Build PKG") {
-  node {
-    ws('workspace/d2l-zh') {
-      sh "build/build_pkg.sh"
-    }
-  }
-}
-stage("Publish") {
-  node {
-    ws('workspace/d2l-zh') {
-      sh """#!/bin/bash
-      set -ex
-      if [[ ${env.BRANCH_NAME} == master ]]; then
-          conda activate d2l-zh-build
-          aws s3 sync --delete build/_build/html/ s3://zh.diveintodeeplearning.org/ --acl public-read
-      fi
-      """
+	  checkout scm
+      sh "git submodule update --init --recursive"
+      sh "build/utils/clean_build.sh"
+      sh "conda env update -f build/env.yml"
+      sh "build/utils/build_html.sh zh"
+      sh "build/utils/build_pdf.sh zh"
+      sh "build/utils/build_pkg.sh zh"
+      if (env.BRANCH_NAME == 'master') {
+        sh "build/utils/publish_website.sh zh"
+      }
     }
   }
 }

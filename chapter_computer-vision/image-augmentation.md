@@ -6,12 +6,12 @@
 
 ```{.python .input  n=21}
 %matplotlib inline
-import gluonbook as gb
+import d2lzh as d2l
 import mxnet as mx
 from mxnet import autograd, gluon, image, init, nd
 from mxnet.gluon import data as gdata, loss as gloss, utils as gutils
 import sys
-from time import time
+import time
 ```
 
 ## 常用的图像增广方法
@@ -19,18 +19,18 @@ from time import time
 我们来读取一张形状为$400\times 500$的图像作为实验中的样例。
 
 ```{.python .input  n=22}
-gb.set_figsize()
+d2l.set_figsize()
 img = image.imread('../img/cat1.jpg')
-gb.plt.imshow(img.asnumpy())
+d2l.plt.imshow(img.asnumpy())
 ```
 
 下面定义绘图函数`show_images`。
 
 ```{.python .input  n=23}
-# 本函数已保存在 gluonbook 包中方便以后使用。
+# 本函数已保存在 d2lzh 包中方便以后使用。
 def show_images(imgs, num_rows, num_cols, scale=2):
     figsize = (num_cols * scale, num_rows * scale)
-    _, axes = gb.plt.subplots(num_rows, num_cols, figsize=figsize)
+    _, axes = d2l.plt.subplots(num_rows, num_cols, figsize=figsize)
     for i in range(num_rows):
         for j in range(num_cols):
             axes[i][j].imshow(imgs[i * num_cols + j].asnumpy())
@@ -114,15 +114,15 @@ show_images(gdata.vision.CIFAR10(train=True)[0:32][0], 4, 8, scale=0.8);
 为了在预测时得到确定的结果，我们通常只将图像增广应用在训练样本上，而不在预测时使用含随机操作的图像增广。在这里我们仅仅使用最简单的随机左右翻转。此外，我们使用`ToTensor`实例将小批量图像转成MXNet需要的格式，即形状为（批量大小，通道数，高，宽）、值域在0到1之间且类型为32位浮点数。
 
 ```{.python .input  n=33}
-train_augs = gdata.vision.transforms.Compose([
+flip_aug = gdata.vision.transforms.Compose([
     gdata.vision.transforms.RandomFlipLeftRight(),
     gdata.vision.transforms.ToTensor()])
 
-test_augs = gdata.vision.transforms.Compose([
+no_aug = gdata.vision.transforms.Compose([
     gdata.vision.transforms.ToTensor()])
 ```
 
-接下来我们定义一个辅助函数来方便读取图像并应用图像增广。Gluon的数据集提供的`transform_first`函数将图像增广应用在每个训练样本（图像和标签）的第一个元素，即图像之上。有关`DataLoader`的详细介绍，可参考更早的[“图像分类数据集（Fashion-MNIST）”](fashion-mnist.md)一节。
+接下来我们定义一个辅助函数来方便读取图像并应用图像增广。Gluon的数据集提供的`transform_first`函数将图像增广应用在每个训练样本（图像和标签）的第一个元素，即图像之上。有关`DataLoader`的详细介绍，可参考更早的[“图像分类数据集（Fashion-MNIST）”](../chapter_deep-learning-basics/fashion-mnist.md)一节。
 
 ```{.python .input  n=34}
 num_workers = 0 if sys.platform.startswith('win32') else 4
@@ -134,12 +134,12 @@ def load_cifar10(is_train, augs, batch_size):
 
 ### 使用多GPU训练模型
 
-我们在CIFAR-10数据集上训练[“残差网络（ResNet）”](../chapter_convolutional-neural-networks/resnet.md)一节介绍的ResNet-18模型。我们还将应用[“多GPU计算的Gluon实现”](../chapter_computational-performance/multiple-gpus-gluon.md)一节中介绍的方法，使用多GPU训练模型。
+我们在CIFAR-10数据集上训练[“残差网络（ResNet）”](../chapter_convolutional-neural-networks/resnet.md)一节介绍的ResNet-18模型。我们还将应用[“多GPU计算的简洁实现”](../chapter_computational-performance/multiple-gpus-gluon.md)一节中介绍的方法，使用多GPU训练模型。
 
 首先，我们定义`try_all_gpus`函数，从而能够获取所有可用的GPU。
 
 ```{.python .input  n=35}
-def try_all_gpus():  # 本函数已保存在 gluonbook 包中方便以后使用。
+def try_all_gpus():  # 本函数已保存在 d2lzh 包中方便以后使用。
     ctxes = []
     try:
         for i in range(16):  # 假设一台机器上 GPU 的个数不超过 16。
@@ -162,40 +162,37 @@ def _get_batch(batch, ctx):
         labels = labels.astype(features.dtype)
     # 当 ctx 包含多个 GPU 时，划分小批量数据样本并复制到各个 GPU 上。
     return (gutils.split_and_load(features, ctx),
-            gutils.split_and_load(labels, ctx),
-            features.shape[0])
+            gutils.split_and_load(labels, ctx), features.shape[0])
 ```
 
 然后，我们定义`evaluate_accuracy`函数评价模型的分类准确率。与[“Softmax回归的从零开始实现”](../chapter_deep-learning-basics/softmax-regression-scratch.md)和[“卷积神经网络（LeNet）”](../chapter_convolutional-neural-networks/lenet.md)两节中描述的`evaluate_accuracy`函数不同，这里定义的函数更加通用：它通过辅助函数`_get_batch`使用`ctx`变量所包含的所有GPU来评价模型。
 
 ```{.python .input  n=36}
-# 本函数已保存在 gluonbook 包中方便以后使用。
+# 本函数已保存在 d2lzh 包中方便以后使用。
 def evaluate_accuracy(data_iter, net, ctx=[mx.cpu()]):
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
-    acc = nd.array([0])
-    n = 0
+    acc_sum, n = nd.array([0]), 0
     for batch in data_iter:
         features, labels, _ = _get_batch(batch, ctx)
         for X, y in zip(features, labels):
             y = y.astype('float32')
-            acc += (net(X).argmax(axis=1) == y).sum().copyto(mx.cpu())
+            acc_sum += (net(X).argmax(axis=1) == y).sum().copyto(mx.cpu())
             n += y.size
-        acc.wait_to_read()
-    return acc.asscalar() / n
+        acc_sum.wait_to_read()
+    return acc_sum.asscalar() / n
 ```
 
 接下来，我们定义`train`函数使用多GPU训练并评价模型。
 
 ```{.python .input  n=37}
-# 本函数已保存在 gluonbook 包中方便以后使用。
+# 本函数已保存在 d2lzh 包中方便以后使用。
 def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs):
     print('training on', ctx)
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
     for epoch in range(num_epochs):
-        train_l_sum, train_acc_sum, n, m = 0.0, 0.0, 0.0, 0.0
-        start = time()
+        train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
         for i, batch in enumerate(train_iter):
             Xs, ys, batch_size = _get_batch(batch, ctx)
             ls = []
@@ -204,24 +201,24 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs):
                 ls = [loss(y_hat, y) for y_hat, y in zip(y_hats, ys)]
             for l in ls:
                 l.backward()
+            trainer.step(batch_size)
+            train_l_sum += sum([l.sum().asscalar() for l in ls])
+            n += sum([l.size for l in ls])
             train_acc_sum += sum([(y_hat.argmax(axis=1) == y).sum().asscalar()
                                  for y_hat, y in zip(y_hats, ys)])
-            train_l_sum += sum([l.sum().asscalar() for l in ls])
-            trainer.step(batch_size)
-            n += batch_size
             m += sum([y.size for y in ys])
         test_acc = evaluate_accuracy(test_iter, net, ctx)
         print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, '
               'time %.1f sec'
               % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc,
-                 time() - start))
+                 time.time() - start))
 ```
 
 现在，我们可以定义`train_with_data_aug`函数使用图像增广来训练模型了。该函数获取了所有可用的GPU，并将Adam作为训练使用的优化算法，然后将图像增广应用于训练数据集之上，最后调用刚才定义的`train`函数训练并评价模型。
 
 ```{.python .input  n=38}
 def train_with_data_aug(train_augs, test_augs, lr=0.001):
-    batch_size, ctx, net = 256, try_all_gpus(), gb.resnet18(10)
+    batch_size, ctx, net = 256, try_all_gpus(), d2l.resnet18(10)
     net.initialize(ctx=ctx, init=init.Xavier())
     trainer = gluon.Trainer(net.collect_params(), 'adam',
                             {'learning_rate': lr})
@@ -231,21 +228,11 @@ def train_with_data_aug(train_augs, test_augs, lr=0.001):
     train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=10)
 ```
 
-### 有关图像增广的对比实验
-
-我们先观察使用了图像增广的结果。
+下面使用随机左右翻转的图像增广来训练模型。
 
 ```{.python .input  n=39}
-train_with_data_aug(train_augs, test_augs)
+train_with_data_aug(flip_aug, no_aug)
 ```
-
-作为对比，下面我们尝试不使用图像增广。
-
-```{.python .input  n=40}
-train_with_data_aug(test_augs, test_augs)
-```
-
-可以看到，即使添加了简单的随机翻转也可能对训练产生一定的影响。图像增广通常会使训练准确率变低，但有可能提高测试准确率。它可以用来应对过拟合。
 
 ## 小结
 
@@ -255,6 +242,7 @@ train_with_data_aug(test_augs, test_augs)
 
 ## 练习
 
+* 不使用图像增广训练模型：`train_with_data_aug(no_aug, no_aug)`。比较有无图像增广时的训练和测试准确率。该对比实验是否能支持图像增广可以应对过拟合这一论断？为什么？
 * 在基于CIFAR-10数据集的模型训练中增加不同的图像增广方法。观察实现结果。
 * 查阅MXNet文档，Gluon的`transforms`模块还提供了哪些图像增广方法？
 

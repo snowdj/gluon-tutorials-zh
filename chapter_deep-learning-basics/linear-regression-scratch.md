@@ -18,7 +18,7 @@ import random
 
 $$\boldsymbol{y} = \boldsymbol{X}\boldsymbol{w} + b + \epsilon,$$
 
-其中噪音项$\epsilon$服从均值为0和标准差为0.01的正态分布。下面，让我们生成数据集。
+其中噪音项$\epsilon$服从均值为0和标准差为0.01的正态分布。噪音（noise）代表了数据集中无意义的干扰。下面，让我们生成数据集。
 
 ```{.python .input  n=2}
 num_inputs = 2
@@ -52,7 +52,7 @@ set_figsize()
 plt.scatter(features[:, 1].asnumpy(), labels.asnumpy(), 1);
 ```
 
-我们将上面的`plt`作图函数以及`use_svg_display`和`set_figsize`函数定义在`gluonbook`包里。以后在作图时，我们将直接调用`gluonbook.plt`。由于`plt`在`gluonbook`包中是一个全局变量，我们在作图前只需要调用`gluonbook.set_figsize()`即可打印矢量图并设置图的尺寸。
+我们将上面的`plt`作图函数以及`use_svg_display`和`set_figsize`函数定义在`d2lzh`包里。以后在作图时，我们将直接调用`d2lzh.plt`。由于`plt`在`d2lzh`包中是一个全局变量，我们在作图前只需要调用`d2lzh.set_figsize()`即可打印矢量图并设置图的尺寸。
 
 
 ## 读取数据
@@ -60,7 +60,7 @@ plt.scatter(features[:, 1].asnumpy(), labels.asnumpy(), 1);
 在训练模型的时候，我们需要遍历数据集并不断读取小批量数据样本。这里我们定义一个函数：它每次返回`batch_size`（批量大小）个随机样本的特征和标签。
 
 ```{.python .input  n=5}
-# 本函数已保存在 gluonbook 包中方便以后使用。
+# 本函数已保存在 d2lzh 包中方便以后使用。
 def data_iter(batch_size, features, labels):
     num_examples = len(features)
     indices = list(range(num_examples))
@@ -101,7 +101,7 @@ b.attach_grad()
 下面是线性回归的矢量计算表达式的实现。我们使用`dot`函数做矩阵乘法。
 
 ```{.python .input  n=9}
-def linreg(X, w, b):  # 本函数已保存在 gluonbook 包中方便以后使用。
+def linreg(X, w, b):  # 本函数已保存在 d2lzh 包中方便以后使用。
     return nd.dot(X, w) + b
 ```
 
@@ -110,7 +110,7 @@ def linreg(X, w, b):  # 本函数已保存在 gluonbook 包中方便以后使用
 我们使用上一节描述的平方损失来定义线性回归的损失函数。在实现中，我们需要把真实值`y`变形成预测值`y_hat`的形状。以下函数返回的结果也将和`y_hat`的形状相同。
 
 ```{.python .input  n=10}
-def squared_loss(y_hat, y):  # 本函数已保存在 gluonbook 包中方便以后使用。
+def squared_loss(y_hat, y):  # 本函数已保存在 d2lzh 包中方便以后使用。
     return (y_hat - y.reshape(y_hat.shape)) ** 2 / 2
 ```
 
@@ -119,7 +119,7 @@ def squared_loss(y_hat, y):  # 本函数已保存在 gluonbook 包中方便以�
 以下的`sgd`函数实现了上一节中介绍的小批量随机梯度下降算法。它通过不断迭代模型参数来优化损失函数。这里自动求梯度模块计算得来的梯度是一个批量样本的梯度和。我们将它除以批量大小来得到平均值。
 
 ```{.python .input  n=11}
-def sgd(params, lr, batch_size):  # 本函数已保存在 gluonbook 包中方便以后使用。
+def sgd(params, lr, batch_size):  # 本函数已保存在 d2lzh 包中方便以后使用。
     for param in params:
         param[:] = param - lr * param.grad / batch_size
 ```
@@ -137,7 +137,7 @@ net = linreg
 loss = squared_loss
 
 for epoch in range(num_epochs):  # 训练模型一共需要 num_epochs 个迭代周期。
-    # 在一个迭代周期中，使用训练数据集中所有样本一次（假设样本数能够被批量大小整除）。
+    # 在每一个迭代周期中，会使用训练数据集中所有样本一次（假设样本数能够被批量大小整除）。
     # X 和 y 分别是小批量样本的特征和标签。
     for X, y in data_iter(batch_size, features, labels):
         with autograd.record():
@@ -165,7 +165,7 @@ true_b, b
 
 ## 练习
 
-* 为什么`squared_loss`函数中需要使用`reshape`函数?
+* 为什么`squared_loss`函数中需要使用`reshape`函数？
 * 尝试使用不同的学习率，观察损失函数值的下降快慢。
 * 如果样本个数不能被批量大小整除，`data_iter`函数的行为会有什么变化？
 

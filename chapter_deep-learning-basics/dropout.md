@@ -26,7 +26,7 @@ $$\mathbb{E}(h_i') = \frac{\mathbb{E}(\xi_i)}{1-p}h_i = h_i.$$
 根据丢弃法的定义，我们可以很容易地实现它。下面的`dropout`函数将以`drop_prob`的概率丢弃NDArray输入`X`中的元素。
 
 ```{.python .input}
-import gluonbook as gb
+import d2lzh as d2l
 from mxnet import autograd, gluon, init, nd
 from mxnet.gluon import loss as gloss, nn
 
@@ -99,12 +99,12 @@ def net(X):
 ```{.python .input}
 num_epochs, lr, batch_size = 5, 0.5, 256
 loss = gloss.SoftmaxCrossEntropyLoss()
-train_iter, test_iter = gb.load_data_fashion_mnist(batch_size)
-gb.train_ch3(net, train_iter, test_iter, loss, num_epochs, batch_size, params,
-             lr)
+train_iter, test_iter = d2l.load_data_fashion_mnist(batch_size)
+d2l.train_ch3(net, train_iter, test_iter, loss, num_epochs, batch_size,
+              params, lr)
 ```
 
-## Gluon实现
+## 简洁实现
 
 在Gluon中，我们只需要在全连接层后添加`Dropout`层并指定丢弃概率。在训练模型时，`Dropout`层将以指定的丢弃概率随机丢弃上一层的输出元素；在测试模型时，`Dropout`层并不发挥作用。
 
@@ -122,8 +122,8 @@ net.initialize(init.Normal(sigma=0.01))
 
 ```{.python .input}
 trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': lr})
-gb.train_ch3(net, train_iter, test_iter, loss, num_epochs, batch_size,
-             None, None, trainer)
+d2l.train_ch3(net, train_iter, test_iter, loss, num_epochs, batch_size, None,
+              None, trainer)
 ```
 
 ## 小结

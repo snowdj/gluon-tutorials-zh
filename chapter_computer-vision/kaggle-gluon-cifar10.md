@@ -13,7 +13,7 @@
 首先，导入比赛所需的包或模块。
 
 ```{.python .input  n=1}
-import gluonbook as gb
+import d2lzh as d2l
 from mxnet import autograd, gluon, init
 from mxnet.gluon import data as gdata, loss as gloss, nn
 import os
@@ -72,7 +72,7 @@ def read_label_file(data_dir, label_file, train_dir, valid_ratio):
 下面定义一个辅助函数，从而仅在路径不存在的情况下创建路径。
 
 ```{.python .input  n=4}
-def mkdir_if_not_exist(path):  # 本函数已保存在 gluonbook 包中方便以后使用。
+def mkdir_if_not_exist(path):  # 本函数已保存在 d2lzh 包中方便以后使用。
     if not os.path.exists(os.path.join(*path)):
         os.makedirs(os.path.join(*path))
 ```
@@ -184,13 +184,13 @@ test_ds = gdata.vision.ImageFolderDataset(
 我们在`DataLoader`中指明定义好的图像增广操作。在训练时，我们仅用验证集评价模型，因此需要保证输出的确定性。在预测时，我们将在训练集和验证集的并集上训练模型，以充分利用所有标注的数据。
 
 ```{.python .input}
-train_data = gdata.DataLoader(train_ds.transform_first(transform_train),
+train_iter = gdata.DataLoader(train_ds.transform_first(transform_train),
                               batch_size, shuffle=True, last_batch='keep')
-valid_data = gdata.DataLoader(valid_ds.transform_first(transform_test),
+valid_iter = gdata.DataLoader(valid_ds.transform_first(transform_test),
                               batch_size, shuffle=True, last_batch='keep')
-train_valid_data = gdata.DataLoader(train_valid_ds.transform_first(
+train_valid_iter = gdata.DataLoader(train_valid_ds.transform_first(
     transform_train), batch_size, shuffle=True, last_batch='keep')
-test_data = gdata.DataLoader(test_ds.transform_first(transform_test),
+test_iter = gdata.DataLoader(test_ds.transform_first(transform_test),
                              batch_size, shuffle=False, last_batch='keep')
 ```
 
@@ -263,33 +263,33 @@ loss = gloss.SoftmaxCrossEntropyLoss()
 我们将根据模型在验证集上的表现来选择模型并调节超参数。下面定义了模型的训练函数`train`。我们记录了每个迭代周期的训练时间，这有助于比较不同模型的时间开销。
 
 ```{.python .input  n=12}
-def train(net, train_data, valid_data, num_epochs, lr, wd, ctx, lr_period,
+def train(net, train_iter, valid_iter, num_epochs, lr, wd, ctx, lr_period,
           lr_decay):
     trainer = gluon.Trainer(net.collect_params(), 'sgd',
                             {'learning_rate': lr, 'momentum': 0.9, 'wd': wd})
     for epoch in range(num_epochs):
-        train_l, train_acc, start = 0.0, 0.0, time.time()
+        train_l_sum, train_acc_sum, n, start = 0.0, 0.0, 0, time.time()
         if epoch > 0 and epoch % lr_period == 0:
             trainer.set_learning_rate(trainer.learning_rate * lr_decay)
-        for X, y in train_data:
+        for X, y in train_iter:
             y = y.astype('float32').as_in_context(ctx)
             with autograd.record():
                 y_hat = net(X.as_in_context(ctx))
-                l = loss(y_hat, y)
+                l = loss(y_hat, y).sum()
             l.backward()
             trainer.step(batch_size)
-            train_l += l.mean().asscalar()
-            train_acc += gb.accuracy(y_hat, y)
+            train_l_sum += l.asscalar()
+            train_acc_sum += (y_hat.argmax(axis=1) == y).sum().asscalar()
+            n += y.size
         time_s = "time %.2f sec" % (time.time() - start)
-        if valid_data is not None:
-            valid_acc = gb.evaluate_accuracy(valid_data, net, ctx)
+        if valid_iter is not None:
+            valid_acc = d2l.evaluate_accuracy(valid_iter, net, ctx)
             epoch_s = ("epoch %d, loss %f, train acc %f, valid acc %f, "
-                       % (epoch + 1, train_l / len(train_data),
-                          train_acc / len(train_data), valid_acc))
+                       % (epoch + 1, train_l_sum / n, train_acc_sum / n,
+                          valid_acc))
         else:
             epoch_s = ("epoch %d, loss %f, train acc %f, " %
-                       (epoch + 1, train_l / len(train_data),
-                        train_acc / len(train_data)))
+                       (epoch + 1, train_l_sum / n, train_acc_sum / n))
         print(epoch_s + time_s + ', lr ' + str(trainer.learning_rate))
 ```
 
@@ -298,10 +298,10 @@ def train(net, train_data, valid_data, num_epochs, lr, wd, ctx, lr_period,
 现在，我们可以训练并验证模型了。以下的超参数都是可以调节的，例如增加迭代周期等。由于`lr_period`和`lr_decay`分别设为80和0.1，优化算法的学习率将在每80个迭代周期后自乘0.1。为简单起见，这里仅训练1个迭代周期。
 
 ```{.python .input  n=13}
-ctx, num_epochs, lr, wd = gb.try_gpu(), 1, 0.1, 5e-4
+ctx, num_epochs, lr, wd = d2l.try_gpu(), 1, 0.1, 5e-4
 lr_period, lr_decay, net = 80, 0.1, get_net(ctx)
 net.hybridize()
-train(net, train_data, valid_data, num_epochs, lr, wd, ctx, lr_period,
+train(net, train_iter, valid_iter, num_epochs, lr, wd, ctx, lr_period,
       lr_decay)
 ```
 
@@ -312,10 +312,10 @@ train(net, train_data, valid_data, num_epochs, lr, wd, ctx, lr_period,
 ```{.python .input  n=14}
 net, preds = get_net(ctx), []
 net.hybridize()
-train(net, train_valid_data, None, num_epochs, lr, wd, ctx, lr_period,
+train(net, train_valid_iter, None, num_epochs, lr, wd, ctx, lr_period,
       lr_decay)
 
-for X, _ in test_data:
+for X, _ in test_iter:
     y_hat = net(X.as_in_context(ctx))
     preds.extend(y_hat.argmax(axis=1).astype(int).asnumpy())
 sorted_ids = list(range(1, len(test_ds) + 1))
@@ -339,6 +339,6 @@ df.to_csv('submission.csv', index=False)
 * 如果不使用图像增广的方法能拿到什么样的准确率？
 * 扫码直达讨论区，在社区交流方法和结果。你能发掘出其他更好的技巧吗？
 
-## 扫码直达[讨论区](https://discuss.gluon.ai/t/topic/1545/)
+## 扫码直达[讨论区](https://discuss.gluon.ai/t/topic/1545)
 
 ![](../img/qr_kaggle-gluon-cifar10.svg)

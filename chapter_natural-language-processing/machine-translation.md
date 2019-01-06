@@ -31,8 +31,8 @@ def process_one_seq(seq_tokens, all_tokens, all_seqs, max_seq_len):
 def build_data(all_tokens, all_seqs):
     vocab = text.vocab.Vocabulary(collections.Counter(all_tokens),
                                   reserved_tokens=[PAD, BOS, EOS])
-    indicies = [vocab.to_indices(seq) for seq in all_seqs]
-    return vocab, nd.array(indicies)
+    indices = [vocab.to_indices(seq) for seq in all_seqs]
+    return vocab, nd.array(indices)
 ```
 
 为了演示方便，我们在这里使用一个很小的法语—英语数据集。这个数据集里，每一行是一对法语句子和它对应的英语句子，中间使用`'\t'`隔开。在读取数据时，我们在句末附上“&lt;eos&gt;”符号，并可能通过添加“&lt;pad&gt;”符号使每个序列的长度均为`max_seq_len`。我们为法语词和英语词分别创建词典。法语词的索引和英语词的索引相互独立。
@@ -69,7 +69,7 @@ dataset[0]
 
 ### 编码器
 
-在编码器中，我们将输入语言的词索引通过词嵌入层得到特征表达，然后输入到一个多层门控循环单元中。正如我们在[“循环神经网络的Gluon实现”](../chapter_recurrent-neural-networks/rnn-gluon.md)一节提到的，Gluon的`rnn.GRU`实例在前向计算后也会分别返回输出和最终时间步的多层隐藏状态。其中的输出指的是最后一层的隐藏层在各个时间步的隐藏状态，并不涉及输出层计算。注意力机制将这些输出作为键项和值项。
+在编码器中，我们将输入语言的词索引通过词嵌入层得到特征表达，然后输入到一个多层门控循环单元中。正如我们在[“循环神经网络的简洁实现”](../chapter_recurrent-neural-networks/rnn-gluon.md)一节提到的，Gluon的`rnn.GRU`实例在前向计算后也会分别返回输出和最终时间步的多层隐藏状态。其中的输出指的是最后一层的隐藏层在各个时间步的隐藏状态，并不涉及输出层计算。注意力机制将这些输出作为键项和值项。
 
 ```{.python .input  n=165}
 class Encoder(nn.Block):
@@ -213,7 +213,7 @@ def train(encoder, decoder, dataset, lr, batch_size, num_epochs):
     loss = gloss.SoftmaxCrossEntropyLoss()
     data_iter = gdata.DataLoader(dataset, batch_size, shuffle=True)
     for epoch in range(num_epochs):
-        l_sum = 0
+        l_sum = 0.0
         for X, Y in data_iter:
             with autograd.record():
                 l = batch_loss(encoder, decoder, X, Y, loss)
