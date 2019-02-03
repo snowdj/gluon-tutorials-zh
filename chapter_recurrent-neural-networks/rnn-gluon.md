@@ -15,7 +15,7 @@ import time
 
 ## 定义模型
 
-Gluon的`rnn`模块提供了循环神经网络的实现。下面构造一个单隐藏层、隐藏单元个数为256的循环神经网络层`rnn_layer`，并对权重做初始化。
+Gluon的`rnn`模块提供了循环神经网络的实现。下面构造一个含单隐藏层、隐藏单元个数为256的循环神经网络层`rnn_layer`，并对权重做初始化。
 
 ```{.python .input  n=26}
 num_hiddens = 256
@@ -23,7 +23,7 @@ rnn_layer = rnn.RNN(num_hiddens)
 rnn_layer.initialize()
 ```
 
-接下来调用`rnn_layer`的成员函数`begin_state`来返回初始化的隐藏状态列表。它有一个形状为（隐藏层个数，批量大小，隐藏单元个数）的元素。
+接下来调用`rnn_layer`的成员函数`begin_state`来返回初始化的隐藏状态列表。它有一个形状为(隐藏层个数, 批量大小, 隐藏单元个数)的元素。
 
 ```{.python .input  n=37}
 batch_size = 2
@@ -31,7 +31,7 @@ state = rnn_layer.begin_state(batch_size=batch_size)
 state[0].shape
 ```
 
-与上一节里实现的循环神经网络不同，这里`rnn_layer`的输入形状为（时间步数，批量大小，输入个数）。其中输入个数即one-hot向量长度（词典大小）。此外，`rnn_layer`作为Gluon的`rnn.RNN`实例，在前向计算后会分别返回输出和隐藏状态。其中的输出指的是隐藏层在各个时间步上计算并输出的隐藏状态，它们通常作为后续输出层的输入。需要强调的是，该“输出”本身并不涉及输出层计算，形状为（时间步数，批量大小，隐藏单元个数）。而`rnn.RNN`实例在前向计算返回的隐藏状态指的是隐藏层在最后时间步的可用于初始化下一时间步的隐藏状态：当隐藏层有多层时，每一层的隐藏状态都会记录在该变量中；对于像长短期记忆这样的循环神经网络，该变量还会包含其他信息。我们会在本章后面的小节介绍长短期记忆和深度循环神经网络。
+与上一节中实现的循环神经网络不同，这里`rnn_layer`的输入形状为(时间步数, 批量大小, 输入个数)。其中输入个数即one-hot向量长度（词典大小）。此外，`rnn_layer`作为Gluon的`rnn.RNN`实例，在前向计算后会分别返回输出和隐藏状态，其中输出指的是隐藏层在各个时间步上计算并输出的隐藏状态，它们通常作为后续输出层的输入。需要强调的是，该“输出”本身并不涉及输出层计算，形状为(时间步数, 批量大小, 隐藏单元个数)。而`rnn.RNN`实例在前向计算返回的隐藏状态指的是隐藏层在最后时间步的可用于初始化下一时间步的隐藏状态：当隐藏层有多层时，每一层的隐藏状态都会记录在该变量中；对于像长短期记忆这样的循环神经网络，该变量还会包含其他信息。我们会在本章的后面介绍长短期记忆和深度循环神经网络。
 
 ```{.python .input  n=38}
 num_steps = 35
@@ -40,10 +40,10 @@ Y, state_new = rnn_layer(X, state)
 Y.shape, len(state_new), state_new[0].shape
 ```
 
-接下来我们继承Block类来定义一个完整的循环神经网络。它首先将输入数据使用one-hot向量表示后输入到`rnn_layer`中，然后使用全连接输出层得到输出。输出个数等于词典大小`vocab_size`。
+接下来我们继承`Block`类来定义一个完整的循环神经网络。它首先将输入数据使用one-hot向量表示后输入到`rnn_layer`中，然后使用全连接输出层得到输出。输出个数等于词典大小`vocab_size`。
 
 ```{.python .input  n=39}
-# 本类已保存在 d2lzh 包中方便以后使用。
+# 本类已保存在d2lzh包中方便以后使用
 class RNNModel(nn.Block):
     def __init__(self, rnn_layer, vocab_size, **kwargs):
         super(RNNModel, self).__init__(**kwargs)
@@ -52,11 +52,11 @@ class RNNModel(nn.Block):
         self.dense = nn.Dense(vocab_size)
 
     def forward(self, inputs, state):
-        # 将输入转置成（num_steps，batch_size）后获取 one-hot 向量表示。
+        # 将输入转置成(num_steps, batch_size)后获取one-hot向量表示
         X = nd.one_hot(inputs.T, self.vocab_size)
         Y, state = self.rnn(X, state)
-        # 全连接层会首先将 Y 的形状变成（num_steps * batch_size，num_hiddens），
-        # 它的输出形状为（num_steps * batch_size，vocab_size）。
+        # 全连接层会首先将Y的形状变成(num_steps * batch_size, num_hiddens)，它的输出
+        # 形状为(num_steps * batch_size, vocab_size)
         output = self.dense(Y.reshape((-1, Y.shape[-1])))
         return output, state
 
@@ -64,20 +64,20 @@ class RNNModel(nn.Block):
         return self.rnn.begin_state(*args, **kwargs)
 ```
 
-## 模型训练
+## 训练模型
 
-同前一节一样，以下定义了一个预测函数。这里的实现区别在于前向计算和初始化隐藏状态的函数接口。
+同上一节一样，下面定义一个预测函数。这里的实现区别在于前向计算和初始化隐藏状态的函数接口。
 
 ```{.python .input  n=41}
-# 本函数已保存在 d2lzh 包中方便以后使用。
+# 本函数已保存在d2lzh包中方便以后使用
 def predict_rnn_gluon(prefix, num_chars, model, vocab_size, ctx, idx_to_char,
                       char_to_idx):
-    # 使用 model 的成员函数来初始化隐藏状态。
+    # 使用model的成员函数来初始化隐藏状态
     state = model.begin_state(batch_size=1, ctx=ctx)
     output = [char_to_idx[prefix[0]]]
     for t in range(num_chars + len(prefix) - 1):
         X = nd.array([output[-1]], ctx=ctx).reshape((1, 1))
-        (Y, state) = model(X, state)  # 前向计算不需要传入模型参数。
+        (Y, state) = model(X, state)  # 前向计算不需要传入模型参数
         if t < len(prefix) - 1:
             output.append(char_to_idx[prefix[t + 1]])
         else:
@@ -94,10 +94,10 @@ model.initialize(force_reinit=True, ctx=ctx)
 predict_rnn_gluon('分开', 10, model, vocab_size, ctx, idx_to_char, char_to_idx)
 ```
 
-接下来实现训练函数。它的算法同上一节一样，但这里只使用了相邻采样来读取数据。
+接下来实现训练函数。算法同上一节的一样，但这里只使用了相邻采样来读取数据。
 
 ```{.python .input  n=18}
-# 本函数已保存在 d2lzh 包中方便以后使用。
+# 本函数已保存在d2lzh包中方便以后使用
 def train_and_predict_rnn_gluon(model, num_hiddens, vocab_size, ctx,
                                 corpus_indices, idx_to_char, char_to_idx,
                                 num_epochs, num_steps, lr, clipping_theta,
@@ -120,10 +120,10 @@ def train_and_predict_rnn_gluon(model, num_hiddens, vocab_size, ctx,
                 y = Y.T.reshape((-1,))
                 l = loss(output, y).mean()
             l.backward()
-            # 梯度裁剪。
+            # 梯度裁剪
             params = [p.data() for p in model.collect_params().values()]
             d2l.grad_clipping(params, clipping_theta, ctx)
-            trainer.step(1)  # 因为已经误差取过均值，梯度不用再做平均。
+            trainer.step(1)  # 因为已经误差取过均值，梯度不用再做平均
             l_sum += l.asscalar() * y.size
             n += y.size
 
@@ -154,7 +154,9 @@ train_and_predict_rnn_gluon(model, num_hiddens, vocab_size, ctx,
 
 ## 练习
 
-* 比较跟前一节的实现。看看Gluon的实现是不是运行速度更快？如果你觉得差别明显，试着找找原因。
+* 与上一节的实现进行比较。看看Gluon的实现是不是运行速度更快？如果你觉得差别明显，试着找找原因。
+
+
 
 ## 扫码直达[讨论区](https://discuss.gluon.ai/t/topic/4089)
 

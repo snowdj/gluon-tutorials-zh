@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# The Straight Dope documentation build configuration file, created by
+# The D2L documentation build configuration file, created by
 # sphinx-quickstart on Tue Jul 18 10:40:45 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -73,9 +73,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = '《动手学深度学习》'
-copyright = '2017--2018, Contributors'
-author = "A. Zhang, M. Li, Z. C. Lipton, and A. J. Smola"
-
+copyright = '2017--2019'
+author = "Aston Zhang\\\\Mu Li\\\\Zachary C. Lipton\\\\Alexander J. Smola"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -149,8 +148,8 @@ html_theme_options = {
         ('PDF', 'https://zh.d2l.ai/d2l-zh.pdf', True, 'fas fa-file-pdf'),
         ('Jupyter 记事本', 'https://zh.d2l.ai/d2l-zh.zip', True, 'fas fa-download'),
         ('讨论', 'https://discuss.gluon.ai/c/lecture?order=views', True, 'fab fa-discourse'),
-		('GitHub', 'https://github.com/d2l-ai/d2l-zh', True, 'fab fa-github'),
-		('English Version', 'https://d2l.ai', True, 'fas fa-external-link-alt'),
+        ('GitHub', 'https://github.com/d2l-ai/d2l-zh', True, 'fab fa-github'),
+        ('English Version', 'https://d2l.ai', True, 'fas fa-external-link-alt'),
     ],
     'show_footer': True
 }
@@ -165,7 +164,7 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
-#html_title = 'The Straight Dope v0.1'
+#html_title = 'The D2L v0.1'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -249,7 +248,7 @@ html_search_options = {'dict':jieba_dict}
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'TheStraightDopedoc'
+htmlhelp_basename = 'D2Ldoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -285,6 +284,9 @@ latex_elements = {
         \fancyhead[LE,RO]{{\py@HeaderFamily }}
      }
 \makeatother
+
+\CJKsetecglue{}
+\usepackage{zhnumber}
 ''',
 # The paper size ('letterpaper' or 'a4paper').
 #'papersize': 'letterpaper',
@@ -310,7 +312,7 @@ latex_documents = [
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-latex_logo = '_static/gluon.png'
+#latex_logo = '_static/gluon.png'
 
 # latex_engine  = 'xelatex'
 # For "manual" documents, if this is true, then toplevel headings are parts,
@@ -335,7 +337,7 @@ latex_domain_indices = False
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'thestraightdope', 'The Straight Dope Documentation',
+    (master_doc, 'd2l-zh', 'The D2L Documentation',
      [author], 1)
 ]
 
@@ -349,8 +351,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'TheStraightDope', 'The Straight Dope Documentation',
-     author, 'TheStraightDope', 'One line description of project.',
+    (master_doc, 'd2l-zh', 'The D2L Documentation',
+     author, 'd2l-zh', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -370,6 +372,12 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 # intersphinx_mapping = {'https://docs.python.org/': None}
 
+
+# Figure X.y (1 level)
+numfig = True
+numfig_secnum_depth = 1
+
+
 intersphinx_mapping = {
     # 'python': 'https://docs.python.org/3.5',
     # 'matplotlib': 'https://matplotlib.org',
@@ -383,9 +391,21 @@ nbsphinx_execute = 'never'
 # let the source file format to be xxx.ipynb instead of xxx.ipynb.txt
 html_sourcelink_suffix = ''
 
+def image_caption(app, docname, source):
+    for i, src in enumerate(source):
+        out = ''
+        for l in src.split('\n'):
+            if '![' in l and 'img' in l:
+                # Sphinx does not allow very long caption with space, replace space
+                # with a special token
+                l = l.strip().replace(' ', 'Ⓐ')
+            out += l + '\n'
+        source[i] = out
+
 def setup(app):
     app.add_transform(AutoStructify)
     app.add_config_value('recommonmark_config', {
     }, True)
     app.add_javascript('google_analytics.js')
     app.add_javascript('discuss.js')
+    app.connect('source-read', image_caption)
